@@ -74,7 +74,7 @@ public class MainActivity extends Activity {
         mark = text("砚", 26, INK, true);
         mark.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
         row.addView(mark);
-        row.addView(text("0.3.0", 12, MUTED, false));
+        row.addView(text("0.3.1", 12, MUTED, false));
         return row;
     }
 
@@ -106,7 +106,7 @@ public class MainActivity extends Activity {
             final Store.ChapterRef ref = store.due().get(0);
             card(ref.chapter.title, ref.book.title);
             primary("去复习", new Runnable() {
-                @Override public void run() { open(ref.book.id, ref.chapter.id, 2); }
+                @Override public void run() { open(ref.book.id, ref.chapter.id, 0); }
             });
             quiet("或者去书架开一段新的", new Runnable() {
                 @Override public void run() { tab = 1; show(true); }
@@ -233,7 +233,7 @@ public class MainActivity extends Activity {
         box.setLayoutParams(lp);
         if (openable) {
             box.setOnClickListener(new View.OnClickListener() {
-                @Override public void onClick(View v) { open(ref.book.id, ref.chapter.id, 2); }
+                @Override public void onClick(View v) { open(ref.book.id, ref.chapter.id, 0); }
             });
         }
         return box;
