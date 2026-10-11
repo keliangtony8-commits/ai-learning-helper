@@ -98,26 +98,57 @@ final class Store {
                 String text = part.trim();
                 if (text.length() < 12) continue;
                 n++;
-                String head = text.length() > 18 ? text.substring(0, 18) : text;
-                head = head.replace('\n', ' ');
-                Chapter chapter = blankChapter("第 " + n + " 段");
-                chapter.title = head;
-                chapter.lesson = text;
-                chapter.prompt = "用你自己的话，写下这段最想记住的一句。";
-                chapter.questions = new String[]{"这段主要在说什么？"};
-                chapter.options = new String[][]{{
-                    "先跳过，以后再看",
-                    "它提出了一个可以回去核对的主张",
-                    "字数越多就越重要"
-                }};
-                chapter.answers = new int[]{1};
-                chapter.why = new String[]{"学习时先抓住主张，再决定要不要细读。跳过和堆字数都不是读懂。"};
-                book.chapters.add(chapter);
+                book.chapters.add(chapterFrom(text, n));
             }
             if (book.chapters.isEmpty()) book.chapters.add(blankChapter("正文"));
         }
         books.add(0, book);
         save();
+    }
+
+    private Chapter chapterFrom(String text, int index) {
+        String flat = text.replace('\n', ' ').trim();
+        String title = flat.length() > 16 ? flat.substring(0, 16) : flat;
+        String[] sentences = flat.split("[。！？]");
+        java.util.List<String> usable = new java.util.ArrayList<>();
+        for (String sentence : sentences) {
+            String s = sentence.trim();
+            if (s.length() >= 8 && s.length() <= 42) usable.add(s);
+        }
+        if (usable.isEmpty()) {
+            Chapter chapter = blankChapter("第 " + index + " 段");
+            chapter.title = title;
+            chapter.lesson = text;
+            chapter.prompt = "用你自己的话，写下这段最想记住的一句。";
+            return chapter;
+        }
+        int count = Math.min(2, usable.size());
+        String[] questions = new String[count];
+        String[][] options = new String[count][];
+        int[] answers = new int[count];
+        String[] why = new String[count];
+        for (int i = 0; i < count; i++) {
+            String sentence = usable.get(i);
+            String missing = sentence.length() > 10 ? sentence.substring(sentence.length() / 3, Math.min(sentence.length(), sentence.length() / 3 + 8)) : sentence;
+            int answer = 1;
+            String[] row = new String[]{
+                "这段没有下判断，只是在列书名",
+                sentence,
+                "把「" + missing + "」换成相反的意思"
+            };
+            if (index % 2 == 0) {
+                String swap = row[0];
+                row[0] = row[1];
+                row[1] = swap;
+                answer = 0;
+            }
+            questions[i] = "哪一句能回到这段原文？";
+            options[i] = row;
+            answers[i] = answer;
+            why[i] = "原话是：「" + sentence + "」。另外两项是编的，回到原文对一下。";
+        }
+        Chapter chapter = new Chapter(title, text, "用你自己的话，写下这段最想记住的一句。不要照抄。", questions, options, answers, why);
+        return chapter;
     }
 
     private Chapter blankChapter(String title) {
