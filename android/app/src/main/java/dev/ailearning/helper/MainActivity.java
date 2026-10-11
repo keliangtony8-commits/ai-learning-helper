@@ -116,7 +116,7 @@ public class MainActivity extends Activity {
         mark = text("砚", 26, INK, true);
         mark.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
         row.addView(mark);
-        row.addView(text("0.3.5", 12, MUTED, false));
+        row.addView(text("0.3.6", 12, MUTED, false));
         return row;
     }
 
@@ -155,11 +155,15 @@ public class MainActivity extends Activity {
                 @Override public void run() { tab = 1; show(true); }
             });
         } else if (!store.books.isEmpty()) {
-            final Store.Book book = store.books.get(0);
-            card(book.title, book.author + " · " + book.studiedChapters() + " / " + book.chapters.size() + " 段已学");
-            primary("打开这本书", new Runnable() {
-                @Override public void run() { open(book.id, null, 0); }
-            });
+            final Store.ChapterRef next = store.nextNew();
+            if (next != null) {
+                card(next.chapter.title, next.book.title + " · 还没学");
+                primary("学这一段", new Runnable() {
+                    @Override public void run() { open(next.book.id, next.chapter.id, 0); }
+                });
+            } else {
+                card("今天的新内容学完了", "到期的复习会出现在这里。没到期的不催。");
+            }
         } else {
             card("书架是空的", "先放进一本书，再选一段来学。");
             primary("放进一本书", new Runnable() {
@@ -273,7 +277,9 @@ public class MainActivity extends Activity {
                 pendingTitle = titleInput.getText().toString().trim();
                 Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
                 intent.addCategory(Intent.CATEGORY_OPENABLE);
-                intent.setType("text/plain");
+                intent.setType("*/*");
+                String[] mime = {"text/plain", "text/*", "application/octet-stream"};
+                intent.putExtra(Intent.EXTRA_MIME_TYPES, mime);
                 startActivityForResult(intent, PICK_TEXT);
             }
         });

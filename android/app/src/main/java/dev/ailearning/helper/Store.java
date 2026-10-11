@@ -27,7 +27,7 @@ final class Store {
     Store(Context context) {
         prefs = context.getSharedPreferences("yan", Context.MODE_PRIVATE);
         load();
-        if (books.isEmpty()) seed();
+        if (books.isEmpty() && !prefs.getBoolean("seeded", false)) seed();
     }
 
     void seed() {
@@ -66,6 +66,7 @@ final class Store {
             }
         ));
         books.add(book);
+        prefs.edit().putBoolean("seeded", true).apply();
         save();
     }
 
@@ -229,6 +230,15 @@ final class Store {
             }
         });
         return out;
+    }
+
+    Store.ChapterRef nextNew() {
+        for (Book book : books) {
+            for (Chapter chapter : book.chapters) {
+                if (!chapter.studied) return new ChapterRef(book, chapter);
+            }
+        }
+        return null;
     }
 
     int studiedCount() {
