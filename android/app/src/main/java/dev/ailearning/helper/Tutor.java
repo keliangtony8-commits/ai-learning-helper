@@ -84,7 +84,7 @@ final class Tutor {
         messages.put(u);
         body.put("messages", messages);
 
-        HttpURLConnection conn = (HttpURLConnection) new URL(baseUrl() + "/chat/completions").openConnection();
+        HttpURLConnection conn = (HttpURLConnection) new URL(baseUrl() + "/chat/completions").openConnection(java.net.Proxy.NO_PROXY);
         conn.setConnectTimeout(15000);
         conn.setReadTimeout(60000);
         conn.setRequestMethod("POST");
