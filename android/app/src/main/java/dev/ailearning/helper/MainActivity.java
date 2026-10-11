@@ -74,7 +74,7 @@ public class MainActivity extends Activity {
         mark = text("砚", 26, INK, true);
         mark.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
         row.addView(mark);
-        row.addView(text("0.3.1", 12, MUTED, false));
+        row.addView(text("0.3.2", 12, MUTED, false));
         return row;
     }
 
@@ -244,7 +244,26 @@ public class MainActivity extends Activity {
         kicker("我的");
         title("学习记录");
         card("已学 " + store.studiedCount() + " 段", "复习间隔是 1、3、7、16、35 天。答错会回到第一天。书只存在这台手机上。");
-        body.addView(space(12));
+        java.util.List<Store.ChapterRef> done = new java.util.ArrayList<>();
+        for (Store.Book book : store.books) {
+            for (Store.Chapter chapter : book.chapters) {
+                if (chapter.studied) done.add(new Store.ChapterRef(book, chapter));
+            }
+        }
+        if (!done.isEmpty()) {
+            body.addView(space(18));
+            body.addView(text("最近写下的", 13, MUTED, true));
+            body.addView(space(8));
+            int shown = 0;
+            for (int i = done.size() - 1; i >= 0 && shown < 3; i--) {
+                Store.ChapterRef ref = done.get(i);
+                if (ref.chapter.recall == null || ref.chapter.recall.length() == 0) continue;
+                card(ref.chapter.title, ref.chapter.recall);
+                body.addView(space(10));
+                shown++;
+            }
+        }
+        body.addView(space(8));
         card("还没接模型", "粘贴进来的文字会按空行分成段。讲义和题目还是规则生成的，不是模型写的。");
     }
 
@@ -333,6 +352,7 @@ public class MainActivity extends Activity {
         body.addView(text(chapter.prompt, 15, MUTED, false));
         body.addView(space(12));
         final EditText input = field("用你自己的话写两句");
+        if (recall.length() == 0 && chapter.recall != null) recall = chapter.recall;
         input.setText(recall);
         input.setMinLines(4);
         cardWrap(input);
@@ -403,7 +423,7 @@ public class MainActivity extends Activity {
                     return;
                 }
                 if (picked == null || picked != chapter.answers[quiz]) quizWrong = true;
-                store.grade(book.id, chapter.id, !quizWrong);
+                store.grade(book.id, chapter.id, !quizWrong, recall);
                 bookId = null;
                 chapterId = null;
                 tab = 2;

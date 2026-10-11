@@ -136,7 +136,7 @@ final class Store {
         save();
     }
 
-    void grade(String bookId, String chapterId, boolean passed) {
+    void grade(String bookId, String chapterId, boolean passed, String recallText) {
         Chapter chapter = findChapter(bookId, chapterId);
         if (chapter == null) return;
         chapter.studied = true;
@@ -147,6 +147,7 @@ final class Store {
         }
         chapter.dueAt = System.currentTimeMillis() + GAPS[chapter.box];
         chapter.lastResult = passed ? "记住了" : "还要再看";
+        if (recallText != null && recallText.trim().length() > 0) chapter.recall = recallText.trim();
         save();
     }
 
@@ -274,6 +275,7 @@ final class Store {
         int box;
         long dueAt;
         String lastResult = "";
+        String recall = "";
 
         Chapter(String title, String lesson, String prompt, String[] questions, String[][] options, int[] answers, String[] why) {
             this(UUID.randomUUID().toString(), title, lesson, prompt, questions, options, answers, why);
@@ -309,6 +311,7 @@ final class Store {
                 o.put("box", box);
                 o.put("dueAt", dueAt);
                 o.put("lastResult", lastResult);
+                o.put("recall", recall);
             } catch (JSONException ignored) {}
             return o;
         }
@@ -338,6 +341,7 @@ final class Store {
             chapter.box = o.optInt("box");
             chapter.dueAt = o.optLong("dueAt");
             chapter.lastResult = o.optString("lastResult");
+            chapter.recall = o.optString("recall");
             return chapter;
         }
     }
