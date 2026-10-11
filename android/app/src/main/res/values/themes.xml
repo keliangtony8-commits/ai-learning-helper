@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">砚</string>
+    <style name="Theme.AiLearning" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">#F6F1E7</item>
+        <item name="android:navigationBarColor">#FFFDF8</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+</resources>
