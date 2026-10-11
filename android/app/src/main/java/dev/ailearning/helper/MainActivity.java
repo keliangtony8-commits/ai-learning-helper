@@ -1,61 +1,62 @@
 package dev.ailearning.helper;
 
+import android.app.Activity;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
-import android.app.Activity;
 import android.os.Bundle;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
+import android.view.animation.DecelerateInterpolator;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
+/**
+ * One job per screen. Tabs only switch places: today, shelf, review, me.
+ * Learning is a stack: chapter list, listen, recall, quiz.
+ */
 public class MainActivity extends Activity {
     private static final int PAPER = Color.parseColor("#F6F1E7");
     private static final int CARD = Color.parseColor("#FFFDF8");
     private static final int INK = Color.parseColor("#1C1915");
     private static final int MUTED = Color.parseColor("#6F675E");
     private static final int ACCENT = Color.parseColor("#1F4D45");
+    private static final int ACCENT_SOFT = Color.parseColor("#141F4D45");
     private static final int ACCENT_INK = Color.parseColor("#F4F7F4");
     private static final int WARN = Color.parseColor("#8A4B2F");
     private static final int OK = Color.parseColor("#2F6B45");
 
+    private Store store;
     private LinearLayout body;
     private LinearLayout tabs;
-    private int tab;
-    private int step;
-    private String recall = "";
-    private int quiz;
-    private Integer picked;
+    private TextView mark;
 
-    private static final String[][] OPTIONS = {
-        {"分析阅读，逐段画线", "检视阅读，先摸清结构和主张", "主题阅读，同时打开五本书"},
-        {"把金句摘进笔记", "追问作者的主张、论据和结构", "读得越慢越好"}
-    };
-    private static final String[] QUESTIONS = {
-        "时间只有二十分钟，你最该做的是哪一层？",
-        "分析阅读最核心的动作是？"
-    };
-    private static final String[] WHY = {
-        "时间有限时先检视。分析阅读假设你已经决定这本书值得细读。",
-        "分析阅读是主动追问，不是收集句子，也不是把慢当成深刻。"
-    };
-    private static final int[] ANSWERS = {1, 1};
+    private int tab;
+    private String bookId;
+    private String chapterId;
+    private int step;
+    private int quiz;
+    private boolean quizWrong;
+    private Integer picked;
+    private String recall = "";
+    private boolean adding;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        store = new Store(this);
         LinearLayout root = column();
         root.setBackgroundColor(PAPER);
         root.setPadding(0, dp(28), 0, 0);
         root.addView(header());
         body = column();
-        body.setPadding(dp(22), dp(8), dp(22), dp(16));
+        body.setPadding(dp(22), dp(8), dp(22), dp(18));
         ScrollView scroll = new ScrollView(this);
+        scroll.setFillViewport(true);
         scroll.addView(body);
         scroll.setLayoutParams(new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
@@ -63,91 +64,318 @@ public class MainActivity extends Activity {
         tabs = tabBar();
         root.addView(tabs);
         setContentView(root);
-        show();
+        show(false);
     }
 
     private View header() {
         LinearLayout row = row();
         row.setPadding(dp(22), dp(8), dp(22), 0);
-        row.setGravity(Gravity.BOTTOM);
-        TextView mark = text("砚", 28, INK, true);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        mark = text("砚", 26, INK, true);
         mark.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
         row.addView(mark);
-        row.addView(text("0.2.0", 12, MUTED, false));
+        row.addView(text("0.3.0", 12, MUTED, false));
         return row;
     }
 
-    private void show() {
+    private void show(boolean animate) {
         body.removeAllViews();
-        if (tab == 0) today();
+        boolean learning = bookId != null && !adding;
+        tabs.setVisibility(learning ? View.GONE : View.VISIBLE);
+        if (adding) addBook();
+        else if (bookId != null) learn();
+        else if (tab == 0) today();
         else if (tab == 1) shelf();
         else if (tab == 2) review();
         else me();
         paintTabs();
-    }
-
-    private void today() {
-        if (step == 0) {
-            kicker("第三章 · 阅读的四个层次");
-            title("先分清你在哪一层");
-            steps(0);
-            card("同一本书，读法不该只有一种。艾德勒把阅读分成四层：基础、检视、分析、主题。\n\n"
-                + "基础阅读是看懂句子。检视阅读是在有限时间里摸清这本书值不值得细读。分析阅读才是逐章追问作者到底在主张什么。\n\n"
-                + "多数人卡住，是用检视的速度做分析的事，或者把分析阅读当成抄笔记。");
-            primary("我读完了，用自己的话说", () -> { step = 1; show(); });
-        } else if (step == 1) {
-            kicker("复述");
-            title("不要抄刚才的句子");
-            steps(1);
-            EditText input = new EditText(this);
-            input.setText(recall);
-            input.setHint("用你自己的话写两句");
-            input.setMinLines(4);
-            input.setTextColor(INK);
-            input.setHintTextColor(MUTED);
-            input.setBackground(rounded(Color.WHITE, dp(12)));
-            input.setPadding(dp(12), dp(12), dp(12), dp(12));
-            LinearLayout box = column();
-            box.setBackground(rounded(CARD, dp(16)));
-            box.setPadding(dp(16), dp(16), dp(16), dp(16));
-            box.addView(text("用你自己的话：分析阅读和检视阅读，差在哪一件事上？", 15, MUTED, false));
-            box.addView(space(12));
-            box.addView(input);
-            body.addView(box);
-            primary("去检验", () -> {
-                recall = input.getText().toString().trim();
-                if (recall.length() < 8) {
-                    input.setError("再写具体一点");
-                } else {
-                    picked = null;
-                    step = 2;
-                    show();
-                }
-            });
-        } else {
-            quiz();
+        if (animate) {
+            body.setAlpha(0f);
+            body.setTranslationY(dp(8));
+            body.animate().alpha(1f).translationY(0f).setDuration(280)
+                .setInterpolator(new DecelerateInterpolator()).start();
         }
     }
 
-    private void quiz() {
-        kicker("第 " + (quiz + 1) + " / " + QUESTIONS.length + " 题");
-        title(QUESTIONS[quiz]);
+    private void today() {
+        mark.setText("砚");
+        int due = store.due().size();
+        kicker(due == 0 ? "今天没有到期的复习" : "有 " + due + " 段到期");
+        title(due == 0 ? "从书架选一段来学" : "先把到期的复习完");
+        if (due > 0) {
+            final Store.ChapterRef ref = store.due().get(0);
+            card(ref.chapter.title, ref.book.title);
+            primary("去复习", new Runnable() {
+                @Override public void run() { open(ref.book.id, ref.chapter.id, 2); }
+            });
+            quiet("或者去书架开一段新的", new Runnable() {
+                @Override public void run() { tab = 1; show(true); }
+            });
+        } else if (!store.books.isEmpty()) {
+            final Store.Book book = store.books.get(0);
+            card(book.title, book.author + " · " + book.studiedChapters() + " / " + book.chapters.size() + " 段已学");
+            primary("打开这本书", new Runnable() {
+                @Override public void run() { open(book.id, null, 0); }
+            });
+        } else {
+            card("书架是空的", "先放进一本书，再选一段来学。");
+            primary("放进一本书", new Runnable() {
+                @Override public void run() { adding = true; show(true); }
+            });
+        }
+    }
+
+    private void shelf() {
+        mark.setText("砚");
+        kicker("书架");
+        title("一次推进一本");
+        for (int i = 0; i < store.books.size(); i++) {
+            body.addView(bookRow(store.books.get(i)));
+            body.addView(space(10));
+        }
+        primary("放进一本书", new Runnable() {
+            @Override public void run() { adding = true; show(true); }
+        });
+    }
+
+    private View bookRow(final Store.Book book) {
+        LinearLayout line = row();
+        line.setGravity(Gravity.CENTER_VERTICAL);
+        line.setBackground(rounded(CARD, dp(16)));
+        line.setPadding(dp(14), dp(14), dp(14), dp(14));
+        String spineText = book.title.isEmpty() ? "书" : book.title.substring(0, 1);
+        TextView spine = text(spineText, 18, ACCENT_INK, true);
+        spine.setGravity(Gravity.CENTER);
+        spine.setBackground(rounded(ACCENT, dp(8)));
+        spine.setLayoutParams(new LinearLayout.LayoutParams(dp(44), dp(64)));
+        line.addView(spine);
+        line.addView(spaceW(14));
+        LinearLayout info = column();
+        info.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        info.addView(text(book.title, 18, INK, true));
+        info.addView(space(4));
+        info.addView(text(book.author + " · " + book.studiedChapters() + "/" + book.chapters.size(), 13, MUTED, false));
+        line.addView(info);
+        line.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { open(book.id, null, 0); }
+        });
+        return line;
+    }
+
+    private void addBook() {
+        mark.setText("放进书架");
+        kicker("新书");
+        title("先给它一个名字");
+        final EditText titleInput = field("书名");
+        final EditText authorInput = field("作者，可以空着");
+        final EditText bodyInput = field("把想学的文字贴在这里。空一行，就分成一段。");
+        bodyInput.setMinLines(6);
+        cardWrap(titleInput);
+        body.addView(space(10));
+        cardWrap(authorInput);
+        body.addView(space(10));
+        cardWrap(bodyInput);
+        primary("放进书架", new Runnable() {
+            @Override public void run() {
+                String name = titleInput.getText().toString().trim();
+                if (name.length() < 1) {
+                    titleInput.setError("写个书名");
+                    return;
+                }
+                store.addBook(name, authorInput.getText().toString(), bodyInput.getText().toString());
+                adding = false;
+                tab = 1;
+                show(true);
+            }
+        });
+        quiet("取消", new Runnable() {
+            @Override public void run() { adding = false; show(true); }
+        });
+    }
+
+    private void review() {
+        mark.setText("砚");
+        kicker("复习");
+        title("到期的，才出现在前面");
+        java.util.List<Store.ChapterRef> due = store.due();
+        if (due.isEmpty()) {
+            body.addView(text("现在没有到期的。", 16, MUTED, false));
+            body.addView(space(16));
+        }
+        for (int i = 0; i < due.size(); i++) body.addView(reviewRow(due.get(i), true));
+        java.util.List<Store.ChapterRef> later = store.upcoming();
+        if (!later.isEmpty()) {
+            body.addView(space(8));
+            body.addView(text("还没到期", 13, MUTED, true));
+            body.addView(space(8));
+            int limit = Math.min(later.size(), 4);
+            for (int i = 0; i < limit; i++) body.addView(reviewRow(later.get(i), false));
+        }
+    }
+
+    private View reviewRow(final Store.ChapterRef ref, final boolean openable) {
+        LinearLayout box = column();
+        box.setBackground(rounded(CARD, dp(16)));
+        box.setPadding(dp(16), dp(14), dp(16), dp(14));
+        LinearLayout line = row();
+        TextView left = text(ref.chapter.title, 17, INK, true);
+        left.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        line.addView(left);
+        line.addView(text(Store.dueLabel(ref.chapter.dueAt), 13, openable ? WARN : MUTED, true));
+        box.addView(line);
+        box.addView(space(4));
+        String extra = ref.book.title;
+        if (ref.chapter.lastResult.length() > 0) extra += " · " + ref.chapter.lastResult;
+        box.addView(text(extra, 13, MUTED, false));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp.bottomMargin = dp(10);
+        box.setLayoutParams(lp);
+        if (openable) {
+            box.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) { open(ref.book.id, ref.chapter.id, 2); }
+            });
+        }
+        return box;
+    }
+
+    private void me() {
+        mark.setText("砚");
+        kicker("我的");
+        title("学习记录");
+        card("已学 " + store.studiedCount() + " 段", "复习间隔是 1、3、7、16、35 天。答错会回到第一天。书只存在这台手机上。");
+        body.addView(space(12));
+        card("还没接模型", "粘贴进来的文字会按空行分成段。讲义和题目还是规则生成的，不是模型写的。");
+    }
+
+    private void learn() {
+        final Store.Book book = store.find(bookId);
+        if (book == null) {
+            bookId = null;
+            show(false);
+            return;
+        }
+        if (chapterId == null) {
+            chapterList(book);
+            return;
+        }
+        final Store.Chapter chapter = store.findChapter(bookId, chapterId);
+        if (chapter == null) {
+            chapterId = null;
+            show(false);
+            return;
+        }
+        mark.setText(book.title);
+        if (step == 0) listen(chapter);
+        else if (step == 1) recall(chapter);
+        else quiz(book, chapter);
+    }
+
+    private void chapterList(final Store.Book book) {
+        mark.setText(book.title);
+        kicker(book.author);
+        title("选一段");
+        for (int i = 0; i < book.chapters.size(); i++) {
+            final Store.Chapter chapter = book.chapters.get(i);
+            LinearLayout box = column();
+            box.setBackground(rounded(CARD, dp(16)));
+            box.setPadding(dp(16), dp(14), dp(16), dp(14));
+            box.addView(text(chapter.title, 17, INK, true));
+            box.addView(space(4));
+            String state = chapter.studied ? "已学 · " + Store.dueLabel(chapter.dueAt) : "还没学";
+            box.addView(text(state, 13, chapter.studied ? ACCENT : MUTED, false));
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            lp.bottomMargin = dp(10);
+            box.setLayoutParams(lp);
+            box.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    chapterId = chapter.id;
+                    step = 0;
+                    quiz = 0;
+                    picked = null;
+                    recall = "";
+                    show(true);
+                }
+            });
+            body.addView(box);
+        }
+        quiet("回到书架", new Runnable() {
+            @Override public void run() {
+                bookId = null;
+                tab = 1;
+                show(true);
+            }
+        });
+    }
+
+    private void listen(final Store.Chapter chapter) {
+        kicker(chapter.title);
+        title("先读懂这一段");
+        steps(0);
+        TextView lesson = text(chapter.lesson, 17, INK, false);
+        lesson.setLineSpacing(dp(6), 1f);
+        lesson.setBackground(rounded(CARD, dp(16)));
+        lesson.setPadding(dp(16), dp(16), dp(16), dp(16));
+        body.addView(lesson);
+        primary("我读完了，用自己的话说", new Runnable() {
+            @Override public void run() { step = 1; show(true); }
+        });
+        quiet("换一段", new Runnable() {
+            @Override public void run() { chapterId = null; show(true); }
+        });
+    }
+
+    private void recall(final Store.Chapter chapter) {
+        kicker("复述");
+        title("不要抄刚才的句子");
+        steps(1);
+        body.addView(text(chapter.prompt, 15, MUTED, false));
+        body.addView(space(12));
+        final EditText input = field("用你自己的话写两句");
+        input.setText(recall);
+        input.setMinLines(4);
+        cardWrap(input);
+        primary("去检验", new Runnable() {
+            @Override public void run() {
+                recall = input.getText().toString().trim();
+                if (recall.length() < 8) {
+                    input.setError("再写具体一点");
+                    return;
+                }
+                picked = null;
+                quiz = 0;
+                step = 2;
+                show(true);
+            }
+        });
+        quiet("再看一遍原文", new Runnable() {
+            @Override public void run() { step = 0; show(true); }
+        });
+    }
+
+    private void quiz(final Store.Book book, final Store.Chapter chapter) {
+        kicker("第 " + (quiz + 1) + " / " + chapter.questions.length + " 题");
+        title(chapter.questions[quiz]);
         steps(2);
-        for (int i = 0; i < OPTIONS[quiz].length; i++) {
+        for (int i = 0; i < chapter.options[quiz].length; i++) {
             final int index = i;
             int color = INK;
-            if (picked != null && index == ANSWERS[quiz]) color = OK;
+            if (picked != null && index == chapter.answers[quiz]) color = OK;
             else if (picked != null && index == picked) color = WARN;
             Button button = new Button(this);
-            button.setText(OPTIONS[quiz][i]);
+            button.setText(chapter.options[quiz][i]);
             button.setAllCaps(false);
             button.setTextColor(color);
+            button.setTextSize(15);
             button.setBackground(rounded(CARD, dp(14)));
             button.setPadding(dp(14), dp(12), dp(14), dp(12));
-            button.setOnClickListener(v -> {
-                if (picked == null) {
-                    picked = index;
-                    show();
+            button.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    if (picked == null) {
+                        picked = index;
+                        show(false);
+                    }
                 }
             });
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
@@ -155,89 +383,64 @@ public class MainActivity extends Activity {
             lp.topMargin = dp(10);
             body.addView(button, lp);
         }
-        if (picked == null) return;
+        if (picked == null) {
+            quiet("回到复述", new Runnable() {
+                @Override public void run() { step = 1; show(true); }
+            });
+            return;
+        }
         body.addView(space(14));
-        String lead = picked == ANSWERS[quiz] ? "对了。" : "还差一点。";
-        body.addView(text(lead + " " + WHY[quiz], 15, MUTED, false));
-        boolean last = quiz == QUESTIONS.length - 1;
-        primary(last ? "今天这段先到这里" : "下一题", () -> {
-            if (!last) {
-                quiz += 1;
-                picked = null;
-            } else {
-                step = 0;
-                quiz = 0;
-                picked = null;
-                tab = 3;
+        boolean right = picked == chapter.answers[quiz];
+        body.addView(text((right ? "对了。" : "还差一点。") + " " + chapter.why[quiz], 15, MUTED, false));
+        final boolean last = quiz == chapter.questions.length - 1;
+        primary(last ? "记下这次复习" : "下一题", new Runnable() {
+            @Override public void run() {
+                if (!last) {
+                    if (picked == null || picked != chapter.answers[quiz]) quizWrong = true;
+                    quiz += 1;
+                    picked = null;
+                    show(true);
+                    return;
+                }
+                if (picked == null || picked != chapter.answers[quiz]) quizWrong = true;
+                store.grade(book.id, chapter.id, !quizWrong);
+                bookId = null;
+                chapterId = null;
+                tab = 2;
+                show(true);
             }
-            show();
         });
     }
 
-    private void shelf() {
-        kicker("书架");
-        title("在学的书");
-        body.addView(text("一次只推进一本。上传新书是下一版的事。", 15, MUTED, false));
-        body.addView(space(16));
-        LinearLayout row = row();
-        row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setBackground(rounded(CARD, dp(16)));
-        row.setPadding(dp(16), dp(16), dp(16), dp(16));
-        TextView spine = text("阅", 18, ACCENT_INK, true);
-        spine.setGravity(Gravity.CENTER);
-        spine.setBackground(rounded(ACCENT, dp(8)));
-        spine.setLayoutParams(new LinearLayout.LayoutParams(dp(46), dp(72)));
-        row.addView(spine);
-        row.addView(spaceW(14));
-        LinearLayout info = column();
-        info.addView(text("如何阅读一本书", 20, INK, true));
-        info.addView(text("艾德勒 · 已学 18%", 14, MUTED, false));
-        row.addView(info);
-        body.addView(row);
-        primary("继续第三章", () -> { tab = 0; step = 0; show(); });
-    }
-
-    private void review() {
-        kicker("复习");
-        title("到期的，才出现在这里");
-        body.addView(text("没到期的不列出来。", 15, MUTED, false));
-        body.addView(space(16));
-        reviewCard("阅读的四个层次", "今天");
-        body.addView(space(12));
-        reviewCard("检视阅读的步骤", "明天");
-        primary("先复习今天到期的", () -> { tab = 0; step = 0; show(); });
-    }
-
-    private void reviewCard(String name, String due) {
-        LinearLayout box = column();
-        box.setBackground(rounded(CARD, dp(16)));
-        box.setPadding(dp(16), dp(14), dp(16), dp(14));
-        LinearLayout line = row();
-        TextView left = text(name, 18, INK, true);
-        left.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
-        line.addView(left);
-        line.addView(text(due, 13, WARN, true));
-        box.addView(line);
-        box.addView(text("如何阅读一本书", 14, MUTED, false));
-        body.addView(box);
-    }
-
-    private void me() {
-        kicker("我的");
-        title("学习记录");
-        card("原生安卓界面，不是网页套壳。版本 0.2.0。样例课程还没接模型和上传。");
+    private void open(String nextBook, String nextChapter, int nextStep) {
+        bookId = nextBook;
+        chapterId = nextChapter;
+        step = nextStep;
+        quiz = 0;
+        quizWrong = false;
+        picked = null;
+        recall = "";
+        show(true);
     }
 
     private LinearLayout tabBar() {
         LinearLayout bar = row();
-        bar.setBackgroundColor(Color.parseColor("#F7FFFDF8"));
+        bar.setBackgroundColor(Color.parseColor("#FBF8F2"));
         bar.setPadding(dp(8), dp(6), dp(8), dp(10));
         String[] labels = {"今天", "书架", "复习", "我的"};
         for (int i = 0; i < labels.length; i++) {
             final int index = i;
-            TextView item = text(labels[i], 15, MUTED, false);
+            TextView item = text(labels[i], 14, MUTED, false);
             item.setGravity(Gravity.CENTER);
-            item.setOnClickListener(v -> { tab = index; show(); });
+            item.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    tab = index;
+                    bookId = null;
+                    chapterId = null;
+                    adding = false;
+                    show(true);
+                }
+            });
             item.setLayoutParams(new LinearLayout.LayoutParams(0, dp(48), 1f));
             bar.addView(item);
         }
@@ -247,10 +450,10 @@ public class MainActivity extends Activity {
     private void paintTabs() {
         for (int i = 0; i < tabs.getChildCount(); i++) {
             TextView view = (TextView) tabs.getChildAt(i);
-            boolean on = i == tab;
+            boolean on = i == tab && bookId == null && !adding;
             view.setTextColor(on ? INK : MUTED);
-            view.setTypeface(null, on ? Typeface.BOLD : Typeface.NORMAL);
-            view.setBackground(on ? rounded(Color.parseColor("#141F4D45"), dp(12)) : null);
+            view.setTypeface(Typeface.DEFAULT, on ? Typeface.BOLD : Typeface.NORMAL);
+            view.setBackground(on ? rounded(ACCENT_SOFT, dp(12)) : null);
         }
     }
 
@@ -260,16 +463,20 @@ public class MainActivity extends Activity {
     }
 
     private void title(String value) {
-        body.addView(text(value, 30, INK, true));
+        body.addView(text(value, 28, INK, true));
         body.addView(space(14));
     }
 
     private void steps(int index) {
         String[] names = {"听懂", "复述", "做题"};
         LinearLayout line = row();
+        line.setBackground(rounded(CARD, dp(12)));
+        line.setPadding(dp(4), dp(8), dp(4), dp(8));
         for (int i = 0; i < names.length; i++) {
             TextView item = text(names[i], 13, i == index ? INK : MUTED, i == index);
             item.setGravity(Gravity.CENTER);
+            if (i == index) item.setBackground(rounded(ACCENT_SOFT, dp(8)));
+            item.setPadding(0, dp(4), 0, dp(4));
             item.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
             line.addView(item);
         }
@@ -277,26 +484,62 @@ public class MainActivity extends Activity {
         body.addView(space(16));
     }
 
-    private void card(String value) {
-        TextView view = text(value, 16, INK, false);
-        view.setBackground(rounded(CARD, dp(16)));
-        view.setPadding(dp(16), dp(16), dp(16), dp(16));
-        view.setLineSpacing(dp(4), 1f);
-        body.addView(view);
+    private void card(String heading, String value) {
+        LinearLayout box = column();
+        box.setBackground(rounded(CARD, dp(16)));
+        box.setPadding(dp(16), dp(16), dp(16), dp(16));
+        box.addView(text(heading, 18, INK, true));
+        box.addView(space(6));
+        TextView bodyText = text(value, 15, MUTED, false);
+        bodyText.setLineSpacing(dp(3), 1f);
+        box.addView(bodyText);
+        body.addView(box);
     }
 
-    private void primary(String label, Runnable action) {
+    private void cardWrap(View child) {
+        LinearLayout box = column();
+        box.setBackground(rounded(CARD, dp(16)));
+        box.setPadding(dp(12), dp(8), dp(12), dp(8));
+        box.addView(child);
+        body.addView(box);
+    }
+
+    private EditText field(String hint) {
+        EditText input = new EditText(this);
+        input.setHint(hint);
+        input.setTextColor(INK);
+        input.setHintTextColor(MUTED);
+        input.setBackgroundColor(Color.TRANSPARENT);
+        input.setPadding(dp(4), dp(8), dp(4), dp(8));
+        input.setTextSize(16);
+        return input;
+    }
+
+    private void primary(String label, final Runnable action) {
         body.addView(space(16));
         Button button = new Button(this);
         button.setText(label);
         button.setAllCaps(false);
         button.setTextColor(ACCENT_INK);
         button.setTextSize(16);
-        button.setBackground(rounded(ACCENT, dp(12)));
+        button.setBackground(rounded(ACCENT, dp(14)));
         button.setLayoutParams(new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, dp(48)));
-        button.setOnClickListener(v -> action.run());
+            LinearLayout.LayoutParams.MATCH_PARENT, dp(50)));
+        button.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { action.run(); }
+        });
         body.addView(button);
+    }
+
+    private void quiet(String label, final Runnable action) {
+        body.addView(space(8));
+        TextView view = text(label, 14, MUTED, false);
+        view.setGravity(Gravity.CENTER);
+        view.setPadding(0, dp(10), 0, dp(6));
+        view.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { action.run(); }
+        });
+        body.addView(view);
     }
 
     private TextView text(String value, int size, int color, boolean bold) {
@@ -304,7 +547,7 @@ public class MainActivity extends Activity {
         view.setText(value);
         view.setTextSize(TypedValue.COMPLEX_UNIT_SP, size);
         view.setTextColor(color);
-        if (bold) view.setTypeface(Typeface.DEFAULT_BOLD);
+        if (bold) view.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         return view;
     }
 
@@ -322,13 +565,13 @@ public class MainActivity extends Activity {
 
     private View space(int h) {
         View view = new View(this);
-        view.setLayoutParams(new LinearLayout.LayoutParams(1, h));
+        view.setLayoutParams(new LinearLayout.LayoutParams(1, dp(h)));
         return view;
     }
 
     private View spaceW(int w) {
         View view = new View(this);
-        view.setLayoutParams(new LinearLayout.LayoutParams(w, 1));
+        view.setLayoutParams(new LinearLayout.LayoutParams(dp(w), 1));
         return view;
     }
 
