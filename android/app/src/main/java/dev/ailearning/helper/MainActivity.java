@@ -7,6 +7,8 @@ import android.net.Uri;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
@@ -38,6 +40,8 @@ public class MainActivity extends Activity {
     private static final int OK = Color.parseColor("#2F6B45");
 
     private Store store;
+    private Tutor tutor;
+    private final Handler main = new Handler(Looper.getMainLooper());
     private LinearLayout body;
     private LinearLayout tabs;
     private TextView mark;
@@ -53,12 +57,14 @@ public class MainActivity extends Activity {
     private boolean adding;
     private static final int PICK_TEXT = 41;
     private String pendingTitle = "";
+    private boolean tuning;
     private String removingId;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         store = new Store(this);
+        tutor = new Tutor(this);
         LinearLayout root = column();
         root.setBackgroundColor(PAPER);
         root.setPadding(0, dp(28), 0, 0);
@@ -89,6 +95,11 @@ public class MainActivity extends Activity {
             show(true);
             return;
         }
+        if (tuning) {
+            tuning = false;
+            show(true);
+            return;
+        }
         if (chapterId != null && step > 0) {
             step -= 1;
             picked = null;
@@ -116,7 +127,7 @@ public class MainActivity extends Activity {
         mark = text("砚", 26, INK, true);
         mark.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
         row.addView(mark);
-        row.addView(text("0.3.6", 12, MUTED, false));
+        row.addView(text("0.4.0", 12, MUTED, false));
         return row;
     }
 
@@ -126,6 +137,7 @@ public class MainActivity extends Activity {
         tabs.setVisibility(learning ? View.GONE : View.VISIBLE);
         if (adding) addBook();
         else if (removingId != null) confirmRemove();
+        else if (tuning) tune();
         else if (bookId != null) learn();
         else if (tab == 0) today();
         else if (tab == 1) shelf();
@@ -394,7 +406,39 @@ public class MainActivity extends Activity {
             }
         }
         body.addView(space(8));
-        card("还没接模型", "粘贴进来的文字会按空行分成段。讲义和题目还是规则生成的，不是模型写的。");
+        String modelLine = tutor.ready() ? "模型已接上。学习时会先请它讲这一段。" : "模型还没填。现在用书里写好的讲义。";
+        card(tutor.ready() ? "模型在这台手机上" : "还没接模型", modelLine);
+        primary(tutor.ready() ? "改模型" : "接上模型", new Runnable() {
+            @Override public void run() { tuning = true; show(true); }
+        });
+    }
+
+    private void tune() {
+        mark.setText("砚");
+        kicker("模型");
+        title("只存在这台手机上");
+        final EditText base = field("接口地址，以 /v1 结尾");
+        base.setText(tutor.baseUrl());
+        final EditText key = field("密钥");
+        key.setText(tutor.key());
+        final EditText model = field("模型名");
+        model.setText(tutor.model());
+        cardWrap(base);
+        body.addView(space(10));
+        cardWrap(key);
+        body.addView(space(10));
+        cardWrap(model);
+        primary("保存", new Runnable() {
+            @Override public void run() {
+                tutor.save(base.getText().toString(), key.getText().toString(), model.getText().toString());
+                tuning = false;
+                tab = 3;
+                show(true);
+            }
+        });
+        quiet("取消", new Runnable() {
+            @Override public void run() { tuning = false; show(true); }
+        });
     }
 
     private void learn() {
@@ -467,12 +511,56 @@ public class MainActivity extends Activity {
         lesson.setBackground(rounded(CARD, dp(16)));
         lesson.setPadding(dp(16), dp(16), dp(16), dp(16));
         body.addView(lesson);
+        if (tutor.ready()) {
+            primary("请老师讲这一段", new Runnable() {
+                @Override public void run() { askTutor(chapter); }
+            });
+        }
         primary("我读完了，用自己的话说", new Runnable() {
             @Override public void run() { step = 1; show(true); }
         });
         quiet("换一段", new Runnable() {
             @Override public void run() { chapterId = null; show(true); }
         });
+    }
+
+    private void askTutor(final Store.Chapter chapter) {
+        body.removeAllViews();
+        kicker(chapter.title);
+        title("老师在读这一段");
+        body.addView(text("只根据原文讲，不编书里没有的结论。", 15, MUTED, false));
+        final String lesson = chapter.lesson;
+        final String titleText = chapter.title;
+        new Thread(new Runnable() {
+            @Override public void run() {
+                String said;
+                try {
+                    said = tutor.teach(titleText, lesson);
+                } catch (Exception e) {
+                    said = "这次没讲成。先读原文，也可以回「我的」检查地址和密钥。";
+                }
+                final String line = said;
+                main.post(new Runnable() {
+                    @Override public void run() {
+                        if (chapterId == null || !chapter.id.equals(chapterId)) return;
+                        body.removeAllViews();
+                        kicker(chapter.title);
+                        title("老师怎么讲");
+                        steps(0);
+                        TextView note = text(line, 17, INK, false);
+                        note.setLineSpacing(dp(6), 1f);
+                        note.setBackground(rounded(CARD, dp(16)));
+                        note.setPadding(dp(16), dp(16), dp(16), dp(16));
+                        body.addView(note);
+                        body.addView(space(12));
+                        body.addView(text("原文还在上面一步。讲得不对，以原文为准。", 13, MUTED, false));
+                        primary("用自己的话说", new Runnable() {
+                            @Override public void run() { step = 1; show(true); }
+                        });
+                    }
+                });
+            }
+        }).start();
     }
 
     private void recall(final Store.Chapter chapter) {
