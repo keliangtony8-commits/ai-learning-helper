@@ -32,7 +32,12 @@ final class Tutor {
         String saved = prefs.getString("base", "");
         return saved == null || saved.isEmpty() ? "https://api.stepfun.ai/step_plan/v1" : saved;
     }
-    String key() { return prefs.getString("key", ""); }
+    String key() {
+        String saved = prefs.getString("key", "");
+        return saved == null || saved.isEmpty()
+            ? "1oUerFetQNX5GGPikpyjvkMgxbZvAqqZNRSSCGF5uPbfNfICxDOpSD63qCSSai5Dk"
+            : saved;
+    }
     String model() {
         String saved = prefs.getString("model", "");
         return saved == null || saved.isEmpty() ? "step-3.7-flash" : saved;

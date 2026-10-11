@@ -127,7 +127,7 @@ public class MainActivity extends Activity {
         mark = text("砚", 26, INK, true);
         mark.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
         row.addView(mark);
-        row.addView(text("0.4.0", 12, MUTED, false));
+        row.addView(text("0.4.1", 12, MUTED, false));
         return row;
     }
 
@@ -406,8 +406,9 @@ public class MainActivity extends Activity {
             }
         }
         body.addView(space(8));
-        String modelLine = tutor.ready() ? "模型已接上。学习时会先请它讲这一段。" : "模型还没填。现在用书里写好的讲义。";
-        card(tutor.ready() ? "模型在这台手机上" : "还没接模型", modelLine);
+        card(tutor.ready() ? "模型已接上" : "还没接模型", tutor.ready()
+            ? "默认用阶跃 step-3.7-flash。学习时可以直接请老师讲这一段。"
+            : "模型还没填。现在用书里写好的讲义。");
         primary(tutor.ready() ? "改模型" : "接上模型", new Runnable() {
             @Override public void run() { tuning = true; show(true); }
         });
