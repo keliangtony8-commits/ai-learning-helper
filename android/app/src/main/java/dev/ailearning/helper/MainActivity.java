@@ -127,7 +127,7 @@ public class MainActivity extends Activity {
         mark = text("砚", 26, INK, true);
         mark.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
         row.addView(mark);
-        row.addView(text("0.4.2", 12, MUTED, false));
+        row.addView(text("0.5.0", 12, MUTED, false));
         return row;
     }
 
@@ -584,13 +584,83 @@ public class MainActivity extends Activity {
                 }
                 picked = null;
                 quiz = 0;
+                quizWrong = false;
                 step = 2;
-                show(true);
+                if (tutor.ready()) askQuiz(chapter);
+                else show(true);
             }
         });
         quiet("再看一遍原文", new Runnable() {
             @Override public void run() { step = 0; show(true); }
         });
+    }
+
+    private void askQuiz(final Store.Chapter chapter) {
+        body.removeAllViews();
+        kicker(chapter.title);
+        title("正在按原文出题");
+        body.addView(text("只考这一段里的主张。", 15, MUTED, false));
+        final String lesson = chapter.lesson;
+        final String id = chapter.id;
+        final String currentBook = bookId;
+        new Thread(new Runnable() {
+            @Override public void run() {
+                boolean ok = false;
+                try {
+                    String raw = tutor.quiz(lesson);
+                    int start = raw.indexOf('{');
+                    int end = raw.lastIndexOf('}');
+                    if (start >= 0 && end > start) {
+                        org.json.JSONObject parsed = new org.json.JSONObject(raw.substring(start, end + 1));
+                        org.json.JSONArray list = parsed.getJSONArray("questions");
+                        int n = Math.min(2, list.length());
+                        String[] questions = new String[n];
+                        String[][] options = new String[n][];
+                        int[] answers = new int[n];
+                        String[] why = new String[n];
+                        int kept = 0;
+                        for (int i = 0; i < n; i++) {
+                            org.json.JSONObject item = list.getJSONObject(i);
+                            org.json.JSONArray opts = item.getJSONArray("options");
+                            if (opts.length() < 2) continue;
+                            String[] row = new String[opts.length()];
+                            for (int j = 0; j < opts.length(); j++) row[j] = opts.getString(j);
+                            int answer = item.getInt("answer");
+                            if (answer < 0 || answer >= row.length) continue;
+                            questions[kept] = item.getString("q");
+                            options[kept] = row;
+                            answers[kept] = answer;
+                            why[kept] = item.optString("why", "回到原文对一下。");
+                            kept++;
+                        }
+                        if (kept > 0) {
+                            if (kept < n) {
+                                String[] q2 = new String[kept];
+                                String[][] o2 = new String[kept][];
+                                int[] a2 = new int[kept];
+                                String[] w2 = new String[kept];
+                                System.arraycopy(questions, 0, q2, 0, kept);
+                                System.arraycopy(options, 0, o2, 0, kept);
+                                System.arraycopy(answers, 0, a2, 0, kept);
+                                System.arraycopy(why, 0, w2, 0, kept);
+                                questions = q2; options = o2; answers = a2; why = w2;
+                            }
+                            store.replaceQuiz(currentBook, id, questions, options, answers, why);
+                            ok = true;
+                        }
+                    }
+                } catch (Exception ignored) {
+                    ok = false;
+                }
+                final boolean ready = ok;
+                main.post(new Runnable() {
+                    @Override public void run() {
+                        if (chapterId == null || !id.equals(chapterId)) return;
+                        show(true);
+                    }
+                });
+            }
+        }).start();
     }
 
     private void quiz(final Store.Book book, final Store.Chapter chapter) {

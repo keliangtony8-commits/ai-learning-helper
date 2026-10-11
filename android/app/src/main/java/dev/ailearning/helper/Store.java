@@ -183,6 +183,16 @@ final class Store {
         save();
     }
 
+    void replaceQuiz(String bookId, String chapterId, String[] questions, String[][] options, int[] answers, String[] why) {
+        Chapter chapter = findChapter(bookId, chapterId);
+        if (chapter == null || questions.length == 0) return;
+        chapter.questions = questions;
+        chapter.options = options;
+        chapter.answers = answers;
+        chapter.why = why;
+        save();
+    }
+
     void grade(String bookId, String chapterId, boolean passed, String recallText) {
         Chapter chapter = findChapter(bookId, chapterId);
         if (chapter == null) return;
