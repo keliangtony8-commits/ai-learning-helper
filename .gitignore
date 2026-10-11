@@ -1,0 +1,12 @@
+.DS_Store
+*.log
+.env
+.env.*
+node_modules/
+dist/
+.gradle/
+local.properties
+*.apk
+*.aab
+.idea/
+.vscode/

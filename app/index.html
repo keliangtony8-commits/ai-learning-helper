@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f6f1e7">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>砚 · 学习</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,520;9..144,640&family=Source+Sans+3:wght@400;560;650&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="phone" id="app">
+    <header class="top">
+      <p class="mark">砚</p>
+      <p class="version" id="version">0.1.0</p>
+    </header>
+    <main id="stage" class="stage" aria-live="polite"></main>
+    <nav class="tabbar" aria-label="主导航">
+      <button type="button" data-tab="today" class="is-on">今天</button>
+      <button type="button" data-tab="shelf">书架</button>
+      <button type="button" data-tab="review">复习</button>
+      <button type="button" data-tab="me">我的</button>
+    </nav>
+  </div>
+  <script src="lesson.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
