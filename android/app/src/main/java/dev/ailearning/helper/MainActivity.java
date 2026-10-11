@@ -67,6 +67,33 @@ public class MainActivity extends Activity {
         show(false);
     }
 
+    @Override
+    public void onBackPressed() {
+        if (adding) {
+            adding = false;
+            show(true);
+            return;
+        }
+        if (chapterId != null && step > 0) {
+            step -= 1;
+            picked = null;
+            show(true);
+            return;
+        }
+        if (chapterId != null) {
+            chapterId = null;
+            show(true);
+            return;
+        }
+        if (bookId != null) {
+            bookId = null;
+            tab = 1;
+            show(true);
+            return;
+        }
+        super.onBackPressed();
+    }
+
     private View header() {
         LinearLayout row = row();
         row.setPadding(dp(22), dp(8), dp(22), 0);
@@ -74,7 +101,7 @@ public class MainActivity extends Activity {
         mark = text("砚", 26, INK, true);
         mark.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
         row.addView(mark);
-        row.addView(text("0.3.2", 12, MUTED, false));
+        row.addView(text("0.3.3", 12, MUTED, false));
         return row;
     }
 
