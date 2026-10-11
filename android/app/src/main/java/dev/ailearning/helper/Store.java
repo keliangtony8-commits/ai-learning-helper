@@ -69,6 +69,11 @@ final class Store {
         save();
     }
 
+    Book findExact(String id) {
+        for (Book book : books) if (book.id.equals(id)) return book;
+        return null;
+    }
+
     Book find(String id) {
         for (Book book : books) if (book.id.equals(id)) return book;
         return books.isEmpty() ? null : books.get(0);
@@ -126,6 +131,16 @@ final class Store {
             new String[]{"先把问题写清楚。收藏和再找书，都还没开始学。"}
         );
         return chapter;
+    }
+
+    void removeBook(String id) {
+        for (int i = 0; i < books.size(); i++) {
+            if (books.get(i).id.equals(id)) {
+                books.remove(i);
+                save();
+                return;
+            }
+        }
     }
 
     void markStudied(String bookId, String chapterId) {

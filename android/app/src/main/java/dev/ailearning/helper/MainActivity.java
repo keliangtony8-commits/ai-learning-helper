@@ -1,7 +1,9 @@
 package dev.ailearning.helper;
 
 import android.app.Activity;
+import android.content.Intent;
 import android.graphics.Color;
+import android.net.Uri;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
@@ -14,6 +16,11 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
+
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 
 /**
  * One job per screen. Tabs only switch places: today, shelf, review, me.
@@ -44,6 +51,9 @@ public class MainActivity extends Activity {
     private Integer picked;
     private String recall = "";
     private boolean adding;
+    private static final int PICK_TEXT = 41;
+    private String pendingTitle = "";
+    private String removingId;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -74,6 +84,11 @@ public class MainActivity extends Activity {
             show(true);
             return;
         }
+        if (removingId != null) {
+            removingId = null;
+            show(true);
+            return;
+        }
         if (chapterId != null && step > 0) {
             step -= 1;
             picked = null;
@@ -101,7 +116,7 @@ public class MainActivity extends Activity {
         mark = text("砚", 26, INK, true);
         mark.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
         row.addView(mark);
-        row.addView(text("0.3.3", 12, MUTED, false));
+        row.addView(text("0.3.4", 12, MUTED, false));
         return row;
     }
 
@@ -110,6 +125,7 @@ public class MainActivity extends Activity {
         boolean learning = bookId != null && !adding;
         tabs.setVisibility(learning ? View.GONE : View.VISIBLE);
         if (adding) addBook();
+        else if (removingId != null) confirmRemove();
         else if (bookId != null) learn();
         else if (tab == 0) today();
         else if (tab == 1) shelf();
@@ -156,6 +172,8 @@ public class MainActivity extends Activity {
         mark.setText("砚");
         kicker("书架");
         title("一次推进一本");
+        body.addView(text("长按一本书，可以把它移出书架。", 13, MUTED, false));
+        body.addView(space(12));
         for (int i = 0; i < store.books.size(); i++) {
             body.addView(bookRow(store.books.get(i)));
             body.addView(space(10));
@@ -186,7 +204,39 @@ public class MainActivity extends Activity {
         line.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { open(book.id, null, 0); }
         });
+        line.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override public boolean onLongClick(View v) {
+                removingId = book.id;
+                show(true);
+                return true;
+            }
+        });
         return line;
+    }
+
+    private void confirmRemove() {
+        final Store.Book book = store.findExact(removingId);
+        mark.setText("砚");
+        kicker("移出书架");
+        if (book == null) {
+            removingId = null;
+            tab = 1;
+            show(false);
+            return;
+        }
+        title("移出「" + book.title + "」？");
+        card("这段学习记录会一起消失", "复述和复习进度都在这台手机上，移出后找不回来。");
+        primary("移出", new Runnable() {
+            @Override public void run() {
+                store.removeBook(book.id);
+                removingId = null;
+                tab = 1;
+                show(true);
+            }
+        });
+        quiet("留下", new Runnable() {
+            @Override public void run() { removingId = null; show(true); }
+        });
     }
 
     private void addBook() {
@@ -218,6 +268,53 @@ public class MainActivity extends Activity {
         quiet("取消", new Runnable() {
             @Override public void run() { adding = false; show(true); }
         });
+        quiet("从文件选一段文字", new Runnable() {
+            @Override public void run() {
+                pendingTitle = titleInput.getText().toString().trim();
+                Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                intent.addCategory(Intent.CATEGORY_OPENABLE);
+                intent.setType("text/plain");
+                startActivityForResult(intent, PICK_TEXT);
+            }
+        });
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != PICK_TEXT || resultCode != RESULT_OK || data == null) return;
+        Uri uri = data.getData();
+        if (uri == null) return;
+        String body = readText(uri);
+        if (body.trim().length() < 12) return;
+        String name = pendingTitle;
+        if (name.length() < 1) name = nameFrom(uri);
+        store.addBook(name, "", body);
+        adding = false;
+        tab = 1;
+        show(true);
+    }
+
+    private String readText(Uri uri) {
+        StringBuilder out = new StringBuilder();
+        try (InputStream in = getContentResolver().openInputStream(uri);
+             BufferedReader reader = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
+            char[] buf = new char[4096];
+            int n;
+            while ((n = reader.read(buf)) > 0 && out.length() < 200000) out.append(buf, 0, n);
+        } catch (Exception ignored) {
+            return "";
+        }
+        return out.toString();
+    }
+
+    private String nameFrom(Uri uri) {
+        String last = uri.getLastPathSegment();
+        if (last == null || last.length() == 0) return "未命名";
+        int slash = last.lastIndexOf('/');
+        if (slash >= 0) last = last.substring(slash + 1);
+        if (last.endsWith(".txt")) last = last.substring(0, last.length() - 4);
+        return last.length() == 0 ? "未命名" : last;
     }
 
     private void review() {
