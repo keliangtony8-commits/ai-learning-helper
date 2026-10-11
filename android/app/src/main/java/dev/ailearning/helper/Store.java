@@ -87,6 +87,28 @@ final class Store {
         return book.chapters.isEmpty() ? null : book.chapters.get(0);
     }
 
+    void addPrepared(String title, String author, java.util.List<String[]> parts) {
+        Book book = new Book(title.trim(), author.trim().isEmpty() ? "未署名" : author.trim());
+        if (parts == null || parts.isEmpty()) {
+            book.chapters.add(blankChapter("正文"));
+        } else {
+            int n = 0;
+            for (String[] part : parts) {
+                if (part == null || part.length < 2) continue;
+                String name = part[0] == null ? "" : part[0].trim();
+                String text = part[1] == null ? "" : part[1].trim();
+                if (text.length() < 8) continue;
+                n++;
+                Chapter chapter = chapterFrom(text, n);
+                if (name.length() > 0) chapter.title = name.length() > 16 ? name.substring(0, 16) : name;
+                book.chapters.add(chapter);
+            }
+            if (book.chapters.isEmpty()) book.chapters.add(blankChapter("正文"));
+        }
+        books.add(0, book);
+        save();
+    }
+
     void addBook(String title, String author, String pasted) {
         Book book = new Book(title.trim(), author.trim().isEmpty() ? "未署名" : author.trim());
         String body = pasted == null ? "" : pasted.trim();

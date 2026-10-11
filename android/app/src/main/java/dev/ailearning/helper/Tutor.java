@@ -68,6 +68,14 @@ final class Tutor {
         return chat(system, "原文：\n" + lesson);
     }
 
+    String split(String body) throws Exception {
+        String clipped = body.length() > 6000 ? body.substring(0, 6000) : body;
+        String system = "把原文拆成可学习的段。一段一个主张。只返回 JSON，不要 markdown。"
+            + "格式：{\"parts\":[{\"title\":\"不超过16字\",\"text\":\"原文原句，不要改写\"}]}。"
+            + "text 必须是原文里的连续句子。最多 6 段。";
+        return chat(system, "原文：\n" + clipped);
+    }
+
     private String chat(String system, String user) throws Exception {
         if (!ready()) throw new IllegalStateException("还没填模型地址");
         JSONObject body = new JSONObject();

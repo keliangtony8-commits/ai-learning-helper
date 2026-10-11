@@ -127,7 +127,7 @@ public class MainActivity extends Activity {
         mark = text("砚", 26, INK, true);
         mark.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
         row.addView(mark);
-        row.addView(text("0.5.0", 12, MUTED, false));
+        row.addView(text("0.6.0", 12, MUTED, false));
         return row;
     }
 
@@ -275,10 +275,7 @@ public class MainActivity extends Activity {
                     titleInput.setError("写个书名");
                     return;
                 }
-                store.addBook(name, authorInput.getText().toString(), bodyInput.getText().toString());
-                adding = false;
-                tab = 1;
-                show(true);
+                placeBook(name, authorInput.getText().toString(), bodyInput.getText().toString());
             }
         });
         quiet("取消", new Runnable() {
@@ -307,10 +304,55 @@ public class MainActivity extends Activity {
         if (body.trim().length() < 12) return;
         String name = pendingTitle;
         if (name.length() < 1) name = nameFrom(uri);
-        store.addBook(name, "", body);
-        adding = false;
-        tab = 1;
-        show(true);
+        placeBook(name, "", body);
+    }
+
+    private void placeBook(final String name, final String author, final String pasted) {
+        if (!tutor.ready() || pasted.trim().length() < 40) {
+            store.addBook(name, author, pasted);
+            adding = false;
+            tab = 1;
+            show(true);
+            return;
+        }
+        body.removeAllViews();
+        kicker("新书");
+        title("正在按主张拆段");
+        body.addView(text("拆不开就按空行放进去。", 15, MUTED, false));
+        new Thread(new Runnable() {
+            @Override public void run() {
+                java.util.List<String[]> parts = null;
+                try {
+                    String raw = tutor.split(pasted);
+                    int start = raw.indexOf('{');
+                    int end = raw.lastIndexOf('}');
+                    if (start >= 0 && end > start) {
+                        org.json.JSONArray list = new org.json.JSONObject(raw.substring(start, end + 1)).getJSONArray("parts");
+                        parts = new java.util.ArrayList<>();
+                        int n = Math.min(6, list.length());
+                        for (int i = 0; i < n; i++) {
+                            org.json.JSONObject item = list.getJSONObject(i);
+                            String text = item.optString("text", "").trim();
+                            if (text.length() < 8 || !pasted.contains(text.substring(0, Math.min(8, text.length())))) continue;
+                            parts.add(new String[]{item.optString("title", ""), text});
+                        }
+                        if (parts.isEmpty()) parts = null;
+                    }
+                } catch (Exception ignored) {
+                    parts = null;
+                }
+                final java.util.List<String[]> ready = parts;
+                main.post(new Runnable() {
+                    @Override public void run() {
+                        if (ready == null) store.addBook(name, author, pasted);
+                        else store.addPrepared(name, author, ready);
+                        adding = false;
+                        tab = 1;
+                        show(true);
+                    }
+                });
+            }
+        }).start();
     }
 
     private String readText(Uri uri) {
