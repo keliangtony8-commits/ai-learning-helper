@@ -127,7 +127,7 @@ public class MainActivity extends Activity {
         mark = text("砚", 26, INK, true);
         mark.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
         row.addView(mark);
-        row.addView(text("0.6.0", 12, MUTED, false));
+        row.addView(text("0.7.0", 12, MUTED, false));
         return row;
     }
 
@@ -502,7 +502,8 @@ public class MainActivity extends Activity {
             return;
         }
         mark.setText(book.title);
-        if (step == 0) listen(chapter);
+        if (step == 0 && tutor.ready()) askTutor(chapter);
+        else if (step == 0) listen(chapter);
         else if (step == 1) recall(chapter);
         else quiz(book, chapter);
     }
