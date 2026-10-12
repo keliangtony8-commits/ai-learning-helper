@@ -273,6 +273,17 @@ final class Store {
         return null;
     }
 
+    Store.ChapterRef nextAfter(String bookId, String chapterId) {
+        Book book = find(bookId);
+        if (book == null) return null;
+        boolean seen = false;
+        for (Chapter chapter : book.chapters) {
+            if (seen && !chapter.studied) return new ChapterRef(book, chapter);
+            if (chapter.id.equals(chapterId)) seen = true;
+        }
+        return null;
+    }
+
     int studiedCount() {
         int n = 0;
         for (Book book : books) for (Chapter chapter : book.chapters) if (chapter.studied) n++;

@@ -69,11 +69,10 @@ final class Tutor {
     }
 
     String split(String body) throws Exception {
-        String clipped = body.length() > 6000 ? body.substring(0, 6000) : body;
         String system = "把原文拆成可学习的段。一段一个主张。只返回 JSON，不要 markdown。"
             + "格式：{\"parts\":[{\"title\":\"不超过16字\",\"text\":\"原文原句，不要改写\"}]}。"
-            + "text 必须是原文里的连续句子。最多 6 段。";
-        return chat(system, "原文：\n" + clipped);
+            + "text 必须是原文里的连续句子。最多 6 段。后面还有原文时，不要把后面的主张提前写进来。";
+        return chat(system, "原文：\n" + body);
     }
 
     private String chat(String system, String user) throws Exception {

@@ -127,7 +127,7 @@ public class MainActivity extends Activity {
         mark = text("砚", 26, INK, true);
         mark.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
         row.addView(mark);
-        row.addView(text("0.8.0", 12, MUTED, false));
+        row.addView(text("0.9.0", 12, MUTED, false));
         return row;
     }
 
@@ -318,30 +318,43 @@ public class MainActivity extends Activity {
         body.removeAllViews();
         kicker("新书");
         title("正在按主张拆段");
-        body.addView(text("拆不开就按空行放进去。", 15, MUTED, false));
+        body.addView(text("长一点的书会按窗口拆完，拆不开就按空行放进去。", 15, MUTED, false));
         new Thread(new Runnable() {
             @Override public void run() {
-                java.util.List<String[]> parts = null;
+                java.util.List<String[]> parts = new java.util.ArrayList<>();
+                int from = 0;
+                String source = pasted.trim();
                 try {
-                    String raw = tutor.split(pasted);
-                    int start = raw.indexOf('{');
-                    int end = raw.lastIndexOf('}');
-                    if (start >= 0 && end > start) {
-                        org.json.JSONArray list = new org.json.JSONObject(raw.substring(start, end + 1)).getJSONArray("parts");
-                        parts = new java.util.ArrayList<>();
-                        int n = Math.min(6, list.length());
-                        for (int i = 0; i < n; i++) {
-                            org.json.JSONObject item = list.getJSONObject(i);
-                            String text = item.optString("text", "").trim();
-                            if (text.length() < 8 || !pasted.contains(text.substring(0, Math.min(8, text.length())))) continue;
-                            parts.add(new String[]{item.optString("title", ""), text});
+                    while (from < source.length() && parts.size() < 24) {
+                        int to = Math.min(source.length(), from + 1800);
+                        if (to < source.length()) {
+                            int cut = source.lastIndexOf('。', to);
+                            if (cut > from + 200) to = cut + 1;
                         }
-                        if (parts.isEmpty()) parts = null;
+                        String window = source.substring(from, to);
+                        String raw = tutor.split(window);
+                        int start = raw.indexOf('{');
+                        int end = raw.lastIndexOf('}');
+                        int covered = 0;
+                        if (start >= 0 && end > start) {
+                            org.json.JSONArray list = new org.json.JSONObject(raw.substring(start, end + 1)).getJSONArray("parts");
+                            int n = Math.min(6, list.length());
+                            for (int i = 0; i < n && parts.size() < 24; i++) {
+                                org.json.JSONObject item = list.getJSONObject(i);
+                                String text = item.optString("text", "").trim();
+                                int at = text.length() < 8 ? -1 : window.indexOf(text);
+                                if (at < 0) continue;
+                                covered = Math.max(covered, at + text.length());
+                                parts.add(new String[]{item.optString("title", ""), text});
+                            }
+                        }
+                        if (covered < 80) break;
+                        from += covered;
                     }
                 } catch (Exception ignored) {
-                    parts = null;
+                    parts.clear();
                 }
-                final java.util.List<String[]> ready = parts;
+                final java.util.List<String[]> ready = parts.isEmpty() ? null : parts;
                 main.post(new Runnable() {
                     @Override public void run() {
                         if (ready == null) store.addBook(name, author, pasted);
@@ -756,9 +769,14 @@ public class MainActivity extends Activity {
                 }
                 if (picked == null || picked != chapter.answers[quiz]) quizWrong = true;
                 store.grade(book.id, chapter.id, !quizWrong, recall);
+                Store.ChapterRef next = store.nextAfter(book.id, chapter.id);
+                if (next != null) {
+                    open(next.book.id, next.chapter.id, 0);
+                    return;
+                }
                 bookId = null;
                 chapterId = null;
-                tab = 2;
+                tab = 0;
                 show(true);
             }
         });
